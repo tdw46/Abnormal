@@ -1,5 +1,6 @@
 import bpy
 import gpu
+import gpu.platform
 import numpy as np
 from gpu_extras.batch import batch_for_shader
 from .functions_general import *
@@ -9,11 +10,26 @@ class ABNContainer:
     def __init__(self, mat, alt_shader=False):
         self.alt_shader = alt_shader
 
-        if alt_shader:
+        # Force built-in shader path on Vulkan backend
+        try:
+            if hasattr(gpu, "platform") and gpu.platform.backend_type_get() == 'VULKAN':
+                self.alt_shader = True
+        except Exception:
+            pass
+
+        if self.alt_shader:
             self.create_alt_shader()
         else:
-            self.create_shader()
-            self.create_point_shader()
+            try:
+                ok = self.create_shader()
+                if ok:
+                    ok = self.create_point_shader()
+                if not ok:
+                    self.alt_shader = True
+                    self.create_alt_shader()
+            except Exception:
+                self.alt_shader = True
+                self.create_alt_shader()
 
         self.matrix = np.array(mat)
 
@@ -85,66 +101,78 @@ class ABNContainer:
         return
 
     def create_shader(self):
-        vertex_shader = '''
-            uniform mat4 viewProjectionMatrix;
+        try:
+            # Skip custom shader creation entirely on Vulkan
+            if gpu.platform.backend_type_get() == 'VULKAN':
+                return False
+            vert_out = gpu.types.GPUStageInterfaceInfo("abn_iface")
+            vert_out.smooth('VEC4', "rgba")
 
-            in vec3 pos;
-            in vec4 color;
-            out vec4 rgba;
+            shader_info = gpu.types.GPUShaderCreateInfo()
+            shader_info.push_constant('MAT4', "viewProjectionMatrix")
+            shader_info.push_constant('FLOAT', "brightness")
+            shader_info.vertex_in(0, 'VEC3', "pos")
+            shader_info.vertex_in(1, 'VEC4', "color")
+            shader_info.vertex_out(vert_out)
+            shader_info.fragment_out(0, 'VEC4', "FragColor")
 
-            void main()
-            {
-                rgba = color;
-                gl_Position = viewProjectionMatrix * vec4(pos, 1.0f);
-            }
-        '''
+            shader_info.vertex_source(
+                "void main()"
+                "{"
+                "  rgba = color;"
+                "  gl_Position = viewProjectionMatrix * vec4(pos, 1.0);"
+                "}"
+            )
 
-        fragment_shader = '''
-            uniform float brightness;
+            shader_info.fragment_source(
+                "void main()"
+                "{"
+                "  FragColor = vec4(rgba.xyz * brightness, rgba.a);"
+                "}"
+            )
 
-            in vec4 rgba;
-            layout(location = 0) out vec4 diffuseColor;
-
-            void main()
-            {
-                diffuseColor  = vec4(rgba.xyz * brightness, rgba.a);
-            }
-        '''
-
-        self.shader = gpu.types.GPUShader(vertex_shader, fragment_shader)
-        return
+            self.shader = gpu.shader.create_from_info(shader_info)
+            return True
+        except Exception:
+            return False
 
     def create_point_shader(self):
-        vertex_shader = '''
-            uniform mat4 viewProjectionMatrix;
+        try:
+            # Skip custom shader creation entirely on Vulkan
+            if gpu.platform.backend_type_get() == 'VULKAN':
+                return False
+            vert_out = gpu.types.GPUStageInterfaceInfo("abn_point_iface")
+            vert_out.smooth('VEC4', "rgba")
 
-            in float size;
-            in vec3 pos;
-            in vec4 color;
-            out vec4 rgba;
+            shader_info = gpu.types.GPUShaderCreateInfo()
+            shader_info.push_constant('MAT4', "viewProjectionMatrix")
+            shader_info.push_constant('FLOAT', "brightness")
+            shader_info.vertex_in(0, 'FLOAT', "size")
+            shader_info.vertex_in(1, 'VEC3', "pos")
+            shader_info.vertex_in(2, 'VEC4', "color")
+            shader_info.vertex_out(vert_out)
+            shader_info.fragment_out(0, 'VEC4', "FragColor")
 
-            void main()
-            {
-                rgba = color;
-                gl_PointSize = size;
-                gl_Position = viewProjectionMatrix * vec4(pos, 1.0f);
-            }
-        '''
+            shader_info.vertex_source(
+                "void main()"
+                "{"
+                "  rgba = color;"
+                "  gl_PointSize = size;"
+                "  gl_Position = viewProjectionMatrix * vec4(pos, 1.0);"
+                "}"
+            )
 
-        fragment_shader = '''
-            uniform float brightness;
+            shader_info.fragment_source(
+                "void main()"
+                "{"
+                "  FragColor = vec4(rgba.xyz * brightness, rgba.a);"
+                "}"
+            )
 
-            in vec4 rgba;
-            layout(location = 0) out vec4 diffuseColor;
-
-            void main()
-            {
-                diffuseColor  = vec4(rgba.xyz * brightness, rgba.a);
-            }
-        '''
-
-        self.point_shader = gpu.types.GPUShader(vertex_shader, fragment_shader)
-        return
+            self.point_shader = gpu.shader.create_from_info(shader_info)
+            return True
+        except Exception:
+            return False
 
     def clear_batches(self):
         if self.alt_shader:
