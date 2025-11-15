@@ -210,7 +210,7 @@ class ABNContainer:
         if self.po_coords is not None and self.po_coords.shape[0] > 0:
             bb_dims = np.ptp(self.po_coords, axis=0)
             bb_edge = float(np.max(bb_dims))
-            scale_base = max(bb_edge * 0.05, 1e-6)
+            scale_base = max(bb_edge * 0.1, 1e-6)
         else:
             scale_base = 1.0
         ns = self.normal_scale * scale_base
@@ -366,7 +366,7 @@ class ABNContainer:
         if self.po_coords is not None and self.po_coords.shape[0] > 0:
             bb_dims = np.ptp(self.po_coords, axis=0)
             bb_edge = float(np.max(bb_dims))
-            scale_base = max(bb_edge * 0.05, 1e-6)
+            scale_base = max(bb_edge * 0.1, 1e-6)
         else:
             scale_base = 1.0
         ns = self.normal_scale * scale_base
@@ -406,11 +406,8 @@ class ABNContainer:
         if self.alt_shader:
             norm_colors[:, [0, 1, 2]] *= self.brightness
 
-            self.batch_normal = batch_for_shader(
-                self.shader, 'LINES', {"pos": list(norms), "color": list(norm_colors)})
-        else:
-            self.batch_normal = batch_for_shader(
-                self.shader, 'LINES', {"pos": norms, "color": norm_colors})
+        self.batch_normal = batch_for_shader(
+            self.shader, 'LINES', {"pos": list(norms), "color": list(norm_colors)})
 
         return
 
