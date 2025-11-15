@@ -217,7 +217,7 @@ class ABN_OT_normal_editor_modal(Operator):
         self._object_bvh = ob_bvh
         self._object_kd = ob_kd
 
-        if bpy.app.version[0] <= 4 and bpy.app.version[1] < 1:
+        if bpy.app.version[0] < 4 or (bpy.app.version[0] == 4 and bpy.app.version[1] < 1):
             if self._object.data.use_auto_smooth == False:
                 self._object.data.use_auto_smooth = True
                 self._object.data.auto_smooth_angle = 180
