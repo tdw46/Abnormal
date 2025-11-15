@@ -10,9 +10,9 @@ from bpy.props import *
 
 bl_info = {
     "name": "Abnormal",
-    "author": "Cody Winchester (codywinch), Tyler Walker (BeyondDev)",
-    "version": (1, 1, 8),
-    "blender": (4, 0, 0),
+    "author": "Cody Winchester (CodyWinch), Tyler Walker (BeyondDev)",
+    "version": (1, 1, 6),
+    "blender": (4, 5, 0),
     "location": "3D View > N Panel/Header > BNPR Abnormal Tab",
     "description": "BNPR Normal Editing Tools",
     "warning": "",
